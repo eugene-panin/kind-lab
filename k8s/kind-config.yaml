@@ -1,6 +1,6 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
-name: kind-lab
+name: __CLUSTER_NAME__
 nodes:
 - role: control-plane
   kubeadmConfigPatches:
@@ -17,13 +17,13 @@ nodes:
     hostPort: 443
     protocol: TCP
   extraMounts:
-  - hostPath: ./src
+  - hostPath: __SRC_PATH__
     containerPath: /local-src
 - role: worker
   extraMounts:
-  - hostPath: ./src
+  - hostPath: __SRC_PATH__
     containerPath: /local-src
 - role: worker
   extraMounts:
-  - hostPath: ./src
+  - hostPath: __SRC_PATH__
     containerPath: /local-src 

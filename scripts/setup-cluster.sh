@@ -18,7 +18,6 @@ KIND_CONFIG_PATH="k8s/kind-config.yaml"
 # Path to the application manifest
 APP_MANIFEST_PATH="k8s/status-app.yaml"
 
-
 # --- Log Colors ---
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
@@ -51,6 +50,30 @@ check_prerequisites() {
     log_success "Certificates found."
 }
 
+# Function to prepare Kind configuration with sed substitution
+prepare_kind_config() {
+    log_info "Preparing Kind configuration..."
+    
+    # Get absolute path to src directory
+    local src_path="$(pwd)/src"
+    
+    # Check if config exists
+    if [ ! -f "$KIND_CONFIG_PATH" ]; then
+        log_error "Kind configuration not found: $KIND_CONFIG_PATH"
+        exit 1
+    fi
+    
+    # Create temporary config with absolute path and cluster name
+    local temp_config=$(mktemp)
+    sed -e "s|__SRC_PATH__|$src_path|g" \
+        -e "s|__CLUSTER_NAME__|$CLUSTER_NAME|g" \
+        "$KIND_CONFIG_PATH" > "$temp_config"
+    
+    # Use temporary config for cluster creation
+    KIND_CONFIG_TEMP="$temp_config"
+    log_success "Kind configuration prepared with path: $src_path and cluster name: $CLUSTER_NAME"
+}
+
 # Function to check if the cluster exists
 cluster_exists() {
     kind get clusters | grep -q "^$CLUSTER_NAME$"
@@ -66,7 +89,7 @@ delete_cluster() {
 # Function to create the cluster
 create_cluster() {
     log_info "Creating Kind cluster '$CLUSTER_NAME'..."
-    kind create cluster --config "$KIND_CONFIG_PATH" --wait 300s
+    kind create cluster --config "$KIND_CONFIG_TEMP" --wait 300s
     log_success "Cluster '$CLUSTER_NAME' created successfully."
 }
 
@@ -119,15 +142,43 @@ deploy_app() {
     log_success "Status page deployed successfully."
 }
 
+# Function to cleanup temporary files
+cleanup() {
+    if [ -n "$KIND_CONFIG_TEMP" ] && [ -f "$KIND_CONFIG_TEMP" ]; then
+        rm -f "$KIND_CONFIG_TEMP"
+    fi
+}
+
+# Function to cleanup dangling kind containers and networks
+docker_cleanup_kind() {
+    log_info "Cleaning up dangling Docker containers and networks for kind..."
+    # Удалить все контейнеры с именем kind-lab-*
+    local containers=$(docker ps -a --filter "name=${CLUSTER_NAME}-" --format "{{.ID}}")
+    if [ -n "$containers" ]; then
+        docker rm -f $containers && log_success "Removed containers: $containers"
+    fi
+    # Удалить сеть kind, если осталась
+    if docker network ls | grep -q " kind[[:space:]]"; then
+        docker network rm kind && log_success "Removed docker network: kind"
+    fi
+}
+
 # Main script logic
 main() {
     log_info "🚀 Starting cluster management script..."
     log_info "Using domain (from .env): *.$LOCAL_DOMAIN"
 
     check_prerequisites
+    prepare_kind_config
+
+    # Set trap to cleanup on exit
+    trap cleanup EXIT
 
     if cluster_exists && [ "$RECREATE" = "true" ]; then
         delete_cluster
+        docker_cleanup_kind
+    elif ! cluster_exists; then
+        docker_cleanup_kind
     fi
 
     if ! cluster_exists; then

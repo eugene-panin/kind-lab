@@ -19,8 +19,7 @@ MKCERT_VERSION ?= v1.4.4
 
 
 # --- Main Targets ---
-.PHONY: all up start down clean deps configure-domain
-all: deps configure-domain up
+.PHONY: up start down clean deps configure-domain
 
 up: start
 start:
@@ -49,7 +48,6 @@ configure-domain:
 .PHONY: help
 help:
 	@echo "Available commands:"
-	@echo "  make all                - Install dependencies, configure host, and start the cluster (recommended for first run)."
 	@echo "  make up                 - Create/recreate and start the cluster."
 	@echo "  make start              - Alias for 'up'."
 	@echo "  make down               - Stop and delete the cluster."
