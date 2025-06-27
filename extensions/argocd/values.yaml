@@ -1,0 +1,43 @@
+server:
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - argo.${LOCAL_DOMAIN}
+    hostname: argo.${LOCAL_DOMAIN}
+    tls:
+      - hosts:
+          - argo.${LOCAL_DOMAIN}
+        secretName: local-dev-tls
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/ssl-passthrough: "false"
+
+# Configure ArgoCD to work without SSL (SSL handled by ingress)
+configs:
+  params:
+    server.insecure: true
+  cm:
+    url: https://argo.${LOCAL_DOMAIN}
+    admin.enabled: "true"
+
+# Enable metrics for monitoring
+controller:
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false
+
+repoServer:
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false
+
+applicationSet:
+  enabled: true
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false 

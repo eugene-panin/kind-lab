@@ -1,6 +1,6 @@
 # Kind Lab
 
-A local Kubernetes development environment using Kind (Kubernetes in Docker) with automatic DNS resolution, TLS certificates, and ingress setup for macOS.
+A local Kubernetes development environment using Kind (Kubernetes in Docker) with automatic DNS resolution, TLS certificates, and GitOps infrastructure for macOS.
 
 ## Features
 
@@ -10,6 +10,23 @@ A local Kubernetes development environment using Kind (Kubernetes in Docker) wit
 - 📦 **NGINX Ingress Controller** for routing traffic
 - 🎯 **Live-reload** for application files
 - 🧹 **Easy cleanup** and resource management
+- 🔄 **GitOps infrastructure** with ArgoCD
+- 📓 **JupyterHub** for data science and development
+
+## Architecture
+
+This project follows a **separation of concerns** approach:
+
+### 🏗️ **kind-lab** (Infrastructure Layer)
+- **Cluster management** (Kind, DNS, TLS)
+- **GitOps platform** (ArgoCD)
+- **Development tools** (JupyterHub)
+
+### 🚀 **External Repositories** (Application Layer)
+- **ml-pipeline** - ML/Data processing applications
+- **user-service** - User management services
+- **api-gateway** - API gateway and routing
+- **frontend-app** - Web applications
 
 ## Prerequisites
 
@@ -23,7 +40,7 @@ A local Kubernetes development environment using Kind (Kubernetes in Docker) wit
 ```bash
 make deps
 ```
-Installs: kind, kubectl, helm, mkcert, dnsmasq
+Installs: kind, kubectl, helm, mkcert, dnsmasq, argocd
 
 ### 2. Configure domain and certificates (requires sudo)
 ```bash
@@ -31,19 +48,25 @@ sudo make configure-domain
 ```
 Creates TLS certificates, configures dnsmasq and system resolver for your domain.
 
-### 3. Start the cluster
+### 3. Start the cluster and install ArgoCD
 ```bash
-make up
+make setup-complete
 ```
-Creates the cluster, applies manifests, deploys ingress and status page.
+Creates the cluster, installs ArgoCD, and deploys status page.
 
-### 4. Clean up cluster and artifacts
+### 4. Install JupyterHub (optional)
+```bash
+make install-jh
+```
+Installs JupyterHub for data science and development.
+
+### 5. Clean up cluster and artifacts
 ```bash
 make clean
 ```
 Removes cluster, certificates, and state files.
 
-### 5. (Optional) Complete system cleanup
+### 6. (Optional) Complete system cleanup
 ```bash
 sudo ./scripts/uninstall-deps.sh
 ```
@@ -60,7 +83,7 @@ cp .env.example .env
 ```
 
 Available variables:
-- `CLUSTER_NAME` - Name of the Kind cluster (default: `beavers-lab`)
+- `CLUSTER_NAME` - Name of the Kind cluster (default: `kind-lab`)
 - `LOCAL_DOMAIN` - Local domain for services (default: `beavers.dev`)
 
 ### Changing Local Domain
@@ -92,13 +115,21 @@ To change the local domain:
 ## Available Commands
 
 ```bash
-make deps               # Install required tools (kind, kubectl, helm, mkcert)
+make deps               # Install required tools (kind, kubectl, helm, mkcert, dnsmasq, argocd)
 make configure-domain   # (sudo) Configure DNS and generate TLS certificates
 make up                 # Create/recreate and start the cluster
 make start              # Alias for 'up'
 make down               # Stop and delete the cluster
-make clean              # Delete cluster and all generated files
+make clean              # Delete cluster and all generated files (certs, state)
 make help               # Show this help message
+
+# ArgoCD
+make install-argocd     # Install ArgoCD GitOps platform
+make setup-complete     # Complete setup: cluster + ArgoCD
+make teardown-complete  # Complete teardown of all components
+
+# JupyterHub
+make install-jh         # Install JupyterHub
 ```
 
 ## Services
@@ -106,8 +137,23 @@ make help               # Show this help message
 Once the cluster is running, the following services are available:
 
 - **Status Page**: https://status.beavers.dev
-- **Kubernetes Dashboard**: Access via `kubectl proxy`
-- **Ingress Controller**: NGINX Ingress Controller
+- **ArgoCD**: https://argo.beavers.dev
+- **JupyterHub**: https://jupyter.beavers.dev
+
+## Infrastructure Components
+
+### 🔄 GitOps
+- **ArgoCD** - GitOps continuous delivery platform
+- **Application management** - Deploy applications from external repositories
+
+### 📓 Development Tools
+- **JupyterHub** - Multi-user Jupyter notebook server
+- **Dummy Authenticator** - Simple authentication for local development
+
+### 🔒 TLS Certificates
+- **mkcert** - Local development certificates (wildcard `*.beavers.dev`)
+- **Manual secret creation** - `kubectl create secret tls local-dev-tls`
+- **No cert-manager needed** - Simple and fast for local development
 
 ## Development
 
@@ -119,9 +165,9 @@ Application files in `src/status-app/` are mounted into the cluster and support 
 
 To add new applications:
 
-1. Create manifests in `k8s/` directory
-2. Add ingress rules for your domain
-3. Apply with `kubectl apply -f k8s/your-app.yaml`
+1. **Create a new repository** for your application
+2. **Add Kubernetes manifests** in the `k8s/` directory
+3. **Configure ArgoCD** to deploy from your repository
 
 ### Custom Domains
 
@@ -129,6 +175,23 @@ All services can be accessed via subdomains of your configured `LOCAL_DOMAIN`:
 - `https://your-app.beavers.dev`
 - `https://api.beavers.dev`
 - etc.
+
+## Repository Structure
+
+```
+kind-lab/
+├── certs/                    # TLS certificates
+├── extensions/               # Helm values for infrastructure
+│   ├── argocd/              # ArgoCD configuration
+│   └── jupyterhub/          # JupyterHub configuration
+├── k8s/                      # Kubernetes manifests
+│   ├── kind-config.yaml      # Kind cluster config
+│   └── status-app.yaml       # Status page
+├── scripts/                  # Management scripts
+├── src/                      # Application source code
+│   └── status-app/           # Status page
+└── README.md
+```
 
 ## Troubleshooting
 
@@ -171,8 +234,8 @@ If cluster creation fails with "node(s) already exist":
 
 1. Clean up manually:
    ```bash
-   kind delete cluster --name beavers-lab
-   docker rm -f $(docker ps -a | grep beavers-lab | awk '{print $1}')
+   kind delete cluster --name kind-lab
+   docker rm -f $(docker ps -a | grep kind-lab | awk '{print $1}')
    ```
 
 2. Try again:
@@ -180,21 +243,67 @@ If cluster creation fails with "node(s) already exist":
    make up
    ```
 
-## Architecture
+### ArgoCD Issues
+
+1. Check ArgoCD status:
+   ```bash
+   kubectl get pods -n argocd
+   ```
+
+2. Access ArgoCD UI:
+   ```bash
+   kubectl port-forward svc/argocd-server -n argocd 8080:443
+   ```
+
+3. Get admin password:
+   ```bash
+   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
+   ```
+
+### JupyterHub Issues
+
+1. Check JupyterHub status:
+   ```bash
+   kubectl get pods -n jupyterhub
+   ```
+
+2. Check ingress configuration:
+   ```bash
+   kubectl get ingress -n jupyterhub
+   ```
+
+3. Verify TLS secret:
+   ```bash
+   kubectl get secret local-dev-tls -n jupyterhub
+   ```
+
+## Architecture Diagram
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Local Files   │    │   Kind Cluster  │    │   Applications  │
 │                 │    │                 │    │                 │
 │ src/status-app/ │───▶│   NGINX Ingress │───▶│  Status Page    │
-│                 │    │   Controller    │    │  Your Apps      │
-│ k8s/manifests/  │───▶│   TLS Secrets   │    │                 │
+│                 │    │   Controller    │    │  JupyterHub     │
+│ k8s/manifests/  │───▶│   TLS Secrets   │    │  Your Apps      │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                               │
                               ▼
                        ┌─────────────────┐
                        │   DNS (dnsmasq) │
                        │   *.beavers.dev │
+                       └─────────────────┘
+                              │
+                              ▼
+                       ┌─────────────────┐
+                       │   ArgoCD        │
+                       │   GitOps        │
+                       └─────────────────┘
+                              │
+                              ▼
+                       ┌─────────────────┐
+                       │   External      │
+                       │   Repositories  │
                        └─────────────────┘
 ```
 

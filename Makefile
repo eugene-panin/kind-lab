@@ -7,7 +7,7 @@ export
 
 # Use `?=` to set default values, which can be overridden by the .env file.
 CLUSTER_NAME ?= kind-lab
-LOCAL_DOMAIN ?= local.dev
+LOCAL_DOMAIN ?= beavers.dev
 
 # Tool versions. Use `?=` so .env can override them.
 # Note: These are currently for reference only, as Homebrew manages the versions.
@@ -19,7 +19,7 @@ MKCERT_VERSION ?= v1.4.4
 
 
 # --- Main Targets ---
-.PHONY: up start down clean deps configure-domain
+.PHONY: up start down clean deps configure-domain install-jh
 
 up: start
 start:
@@ -43,6 +43,34 @@ configure-domain:
 	@echo "--> 🌐 Configuring local domain and TLS certificates..."
 	@sudo LOCAL_DOMAIN=$(LOCAL_DOMAIN) CLUSTER_NAME=$(CLUSTER_NAME) ./scripts/configure-host.sh
 
+install-jh:
+	@echo "--> 🚀 Installing JupyterHub..."
+	@helm repo add jupyterhub https://jupyterhub.github.io/helm-chart/
+	@helm repo update
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN); \
+	temp_values=$$(mktemp); \
+	sed "s/\$${LOCAL_DOMAIN}/$${LOCAL_DOMAIN}/g" extensions/jupyterhub/values.yaml > $$temp_values; \
+	helm upgrade --install jupyterhub jupyterhub/jupyterhub \
+	  --namespace jupyterhub --create-namespace \
+	  -f $$temp_values \
+	  --set proxy.secretToken=dev-jupyterhub-token \
+	  --wait; \
+	rm -f $$temp_values
+	@echo "--> ✅ JupyterHub installed! Access: https://jupyter.$(LOCAL_DOMAIN)"
+
+# --- ArgoCD Targets ---
+.PHONY: install-argocd setup-complete teardown-complete
+
+install-argocd:
+	@echo "--> 🔄 Installing ArgoCD GitOps platform..."
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/install-argocd.sh
+
+setup-complete: up install-argocd
+	@echo "--> 🎉 Complete setup finished!"
+	@echo "--> 📊 Access ArgoCD at: https://argo.$(LOCAL_DOMAIN)"
+
+teardown-complete: clean
+	@echo "--> 🧹 Complete teardown finished!"
 
 # --- Help ---
 .PHONY: help
@@ -54,4 +82,14 @@ help:
 	@echo "  make clean              - Delete the cluster and all generated files (certs, state)."
 	@echo "  make deps               - Install required tools for macOS (kind, kubectl, helm, mkcert)."
 	@echo "  make configure-domain   - (sudo) Configure DNS and generate TLS certificates for the local domain."
+	@echo ""
+	@echo "ArgoCD:"
+	@echo "  make install-argocd     - Install ArgoCD GitOps platform"
+	@echo "  make setup-complete     - Complete setup: cluster + ArgoCD"
+	@echo "  make teardown-complete  - Complete teardown of all components"
+	@echo ""
+	@echo "Environment variables (set in .env):"
+	@echo "  CLUSTER_NAME            - Kind cluster name (default: kind-lab)"
+	@echo "  LOCAL_DOMAIN            - Local domain (default: beavers.dev)"
+	@echo ""
 	@echo "  make help               - Show this help message." 

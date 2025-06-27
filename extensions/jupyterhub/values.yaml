@@ -1,0 +1,33 @@
+proxy:
+  secretToken: "dev-jupyterhub-token"
+  service:
+    type: ClusterIP
+
+ingress:
+  enabled: true
+  hosts:
+    - jupyter.${LOCAL_DOMAIN}
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  tls:
+    - hosts:
+        - jupyter.${LOCAL_DOMAIN}
+      secretName: local-dev-tls
+
+hub:
+  config:
+    Authenticator:
+      admin_users:
+        - admin
+  extraEnv:
+    JUPYTERHUB_CRYPT_KEY: "dev-crypt-key"
+  service:
+    type: ClusterIP
+
+singleuser:
+  image:
+    name: jupyter/base-notebook
+    tag: latest
+  storage:
+    type: none 

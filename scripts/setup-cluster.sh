@@ -152,12 +152,12 @@ cleanup() {
 # Function to cleanup dangling kind containers and networks
 docker_cleanup_kind() {
     log_info "Cleaning up dangling Docker containers and networks for kind..."
-    # Удалить все контейнеры с именем kind-lab-*
+    # Remove all containers with name kind-lab-*
     local containers=$(docker ps -a --filter "name=${CLUSTER_NAME}-" --format "{{.ID}}")
     if [ -n "$containers" ]; then
         docker rm -f $containers && log_success "Removed containers: $containers"
     fi
-    # Удалить сеть kind, если осталась
+    # Remove kind network if it exists
     if docker network ls | grep -q " kind[[:space:]]"; then
         docker network rm kind && log_success "Removed docker network: kind"
     fi
