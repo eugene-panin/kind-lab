@@ -44,19 +44,8 @@ configure-domain:
 	@sudo LOCAL_DOMAIN=$(LOCAL_DOMAIN) CLUSTER_NAME=$(CLUSTER_NAME) ./scripts/configure-host.sh
 
 install-jh:
-	@echo "--> 🚀 Installing JupyterHub..."
-	@helm repo add jupyterhub https://jupyterhub.github.io/helm-chart/
-	@helm repo update
-	@LOCAL_DOMAIN=$(LOCAL_DOMAIN); \
-	temp_values=$$(mktemp); \
-	sed "s/\$${LOCAL_DOMAIN}/$${LOCAL_DOMAIN}/g" extensions/jupyterhub/values.yaml > $$temp_values; \
-	helm upgrade --install jupyterhub jupyterhub/jupyterhub \
-	  --namespace jupyterhub --create-namespace \
-	  -f $$temp_values \
-	  --set proxy.secretToken=dev-jupyterhub-token \
-	  --wait; \
-	rm -f $$temp_values
-	@echo "--> ✅ JupyterHub installed! Access: https://jupyter.$(LOCAL_DOMAIN)"
+	@echo "--> 📓 Installing JupyterHub..."
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/install-jupyterhub.sh
 
 # --- ArgoCD Targets ---
 .PHONY: install-argocd setup-complete teardown-complete
@@ -87,6 +76,9 @@ help:
 	@echo "  make install-argocd     - Install ArgoCD GitOps platform"
 	@echo "  make setup-complete     - Complete setup: cluster + ArgoCD"
 	@echo "  make teardown-complete  - Complete teardown of all components"
+	@echo ""
+	@echo "JupyterHub:"
+	@echo "  make install-jh         - Install JupyterHub"
 	@echo ""
 	@echo "Environment variables (set in .env):"
 	@echo "  CLUSTER_NAME            - Kind cluster name (default: kind-lab)"
