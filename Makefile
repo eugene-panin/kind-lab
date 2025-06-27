@@ -19,7 +19,7 @@ MKCERT_VERSION ?= v1.4.4
 
 
 # --- Main Targets ---
-.PHONY: up start down clean deps configure-domain install-jh
+.PHONY: up start down clean deps configure-domain
 
 up: start
 start:
@@ -43,16 +43,46 @@ configure-domain:
 	@echo "--> 🌐 Configuring local domain and TLS certificates..."
 	@sudo LOCAL_DOMAIN=$(LOCAL_DOMAIN) CLUSTER_NAME=$(CLUSTER_NAME) ./scripts/configure-host.sh
 
-install-jh:
-	@echo "--> 📓 Installing JupyterHub..."
-	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/install-jupyterhub.sh
-
-# --- ArgoCD Targets ---
-.PHONY: install-argocd setup-complete teardown-complete
+# --- ArgoCD Management ---
+.PHONY: install-argocd update-argocd uninstall-argocd status-argocd
 
 install-argocd:
 	@echo "--> 🔄 Installing ArgoCD GitOps platform..."
-	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/install-argocd.sh
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/manage-argocd.sh install
+
+update-argocd:
+	@echo "--> 🔄 Updating ArgoCD..."
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/manage-argocd.sh update
+
+uninstall-argocd:
+	@echo "--> 🗑️ Uninstalling ArgoCD..."
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/manage-argocd.sh uninstall
+
+status-argocd:
+	@echo "--> 📊 Checking ArgoCD status..."
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/manage-argocd.sh status
+
+# --- JupyterHub Management ---
+.PHONY: install-jh update-jh uninstall-jh status-jh
+
+install-jh:
+	@echo "--> 📓 Installing JupyterHub..."
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/manage-jupyterhub.sh install
+
+update-jh:
+	@echo "--> 📓 Updating JupyterHub..."
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/manage-jupyterhub.sh update
+
+uninstall-jh:
+	@echo "--> 🗑️ Uninstalling JupyterHub..."
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/manage-jupyterhub.sh uninstall
+
+status-jh:
+	@echo "--> 📊 Checking JupyterHub status..."
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/manage-jupyterhub.sh status
+
+# --- Complete Setup/Teardown ---
+.PHONY: setup-complete teardown-complete
 
 setup-complete: up install-argocd
 	@echo "--> 🎉 Complete setup finished!"
@@ -72,13 +102,21 @@ help:
 	@echo "  make deps               - Install required tools for macOS (kind, kubectl, helm, mkcert)."
 	@echo "  make configure-domain   - (sudo) Configure DNS and generate TLS certificates for the local domain."
 	@echo ""
-	@echo "ArgoCD:"
+	@echo "ArgoCD Management:"
 	@echo "  make install-argocd     - Install ArgoCD GitOps platform"
+	@echo "  make update-argocd      - Update ArgoCD to latest version"
+	@echo "  make uninstall-argocd   - Remove ArgoCD completely"
+	@echo "  make status-argocd      - Show ArgoCD status and access info"
+	@echo ""
+	@echo "JupyterHub Management:"
+	@echo "  make install-jh         - Install JupyterHub"
+	@echo "  make update-jh          - Update JupyterHub to latest version"
+	@echo "  make uninstall-jh       - Remove JupyterHub completely"
+	@echo "  make status-jh          - Show JupyterHub status and access info"
+	@echo ""
+	@echo "Complete Setup/Teardown:"
 	@echo "  make setup-complete     - Complete setup: cluster + ArgoCD"
 	@echo "  make teardown-complete  - Complete teardown of all components"
-	@echo ""
-	@echo "JupyterHub:"
-	@echo "  make install-jh         - Install JupyterHub"
 	@echo ""
 	@echo "Environment variables (set in .env):"
 	@echo "  CLUSTER_NAME            - Kind cluster name (default: kind-lab)"
