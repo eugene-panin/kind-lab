@@ -1,0 +1,156 @@
+# Redis Helm Values for kind-lab
+# Using Bitnami Redis chart
+
+# Global configuration
+global:
+  domain: redis.${LOCAL_DOMAIN}
+  tls:
+    enabled: true
+    secretName: redis-tls
+
+# Redis configuration
+redis:
+  # Architecture
+  architecture: standalone
+  
+  # Replica count (for standalone mode, this should be 1)
+  replica:
+    replicaCount: 1
+  
+  # Master configuration
+  master:
+    # Persistence
+    persistence:
+      enabled: true
+      size: 8Gi
+      storageClass: ""
+    
+    # Resources
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "200m"
+    
+    # Service configuration
+    service:
+      type: ClusterIP
+      port: 6379
+    
+    # Security
+    securityContext:
+      enabled: true
+      runAsUser: 1001
+      fsGroup: 1001
+    
+    podSecurityContext:
+      enabled: true
+      fsGroup: 1001
+    
+    # Configuration
+    configuration: |
+      # Basic Redis configuration
+      maxmemory 256mb
+      maxmemory-policy allkeys-lru
+      save 900 1
+      save 300 10
+      save 60 10000
+      appendonly yes
+      appendfsync everysec
+    
+    # Pod annotations
+    podAnnotations: {}
+    
+    # Node selector
+    nodeSelector: {}
+    
+    # Tolerations
+    tolerations: []
+    
+    # Affinity
+    affinity: {}
+    
+    # Extra environment variables
+    extraEnvVars: []
+    
+    # Extra volume mounts
+    extraVolumeMounts: []
+    
+    # Extra volumes
+    extraVolumes: []
+  
+  # Authentication
+  auth:
+    enabled: false  # No password for local development
+  
+  # Network policy
+  networkPolicy:
+    enabled: false
+  
+  # Service account
+  serviceAccount:
+    create: true
+    name: ""
+
+# Redis UI configuration (optional)
+redis-ui:
+  enabled: true
+  
+  # Image
+  image:
+    repository: rediscommander/redis-commander
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  # Service
+  service:
+    type: ClusterIP
+    port: 8081
+  
+  # Resources
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+  
+  # Ingress configuration
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: selfsigned-issuer
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    hosts:
+      - host: redis.${LOCAL_DOMAIN}
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: redis-tls
+        hosts:
+          - redis.${LOCAL_DOMAIN}
+  
+  # Environment variables
+  env:
+    - name: REDIS_HOSTS
+      value: "local:redis-master.redis.svc.cluster.local:6379"
+    - name: HTTP_USER
+      value: "${REDIS_UI_USER}"
+    - name: HTTP_PASSWORD
+      value: "${REDIS_UI_PASSWORD}"
+  
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    fsGroup: 1001
+  
+  # Pod security context
+  podSecurityContext:
+    fsGroup: 1001 

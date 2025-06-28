@@ -1,7 +1,7 @@
 # Kind Lab - Local Kubernetes Development Environment
 # Makefile for managing the development cluster and applications
 
-.PHONY: help start-cluster stop-cluster status install-argocd install-minio install-postgresql install-redis install-mlflow uninstall-argocd uninstall-minio uninstall-postgresql uninstall-redis uninstall-mlflow upgrade-argocd upgrade-minio upgrade-postgresql upgrade-redis upgrade-mlflow status-argocd status-minio status-postgresql status-redis status-mlflow logs-argocd logs-minio logs-postgresql logs-redis logs-mlflow
+.PHONY: help start-cluster stop-cluster status install-argocd install-minio install-postgresql install-redis install-mlflow install-kafka uninstall-argocd uninstall-minio uninstall-postgresql uninstall-redis uninstall-mlflow uninstall-kafka upgrade-argocd upgrade-minio upgrade-postgresql upgrade-redis upgrade-mlflow upgrade-kafka status-argocd status-minio status-postgresql status-redis status-mlflow status-kafka logs-argocd logs-minio logs-postgresql logs-redis logs-mlflow logs-kafka
 
 # Get local domain from environment or use default
 LOCAL_DOMAIN ?= beavers.dev
@@ -21,40 +21,47 @@ help:
 	@echo "  install-postgresql - Install PostgreSQL database"
 	@echo "  install-redis    - Install Redis database"
 	@echo "  install-mlflow   - Install MLflow experiment tracking"
+	@echo "  install-kafka    - Install Kafka broker"
 	@echo ""
 	@echo "  upgrade-argocd   - Upgrade ArgoCD to latest version"
 	@echo "  upgrade-minio    - Upgrade MinIO to latest version"
 	@echo "  upgrade-postgresql - Upgrade PostgreSQL to latest version"
 	@echo "  upgrade-redis    - Upgrade Redis to latest version"
 	@echo "  upgrade-mlflow   - Upgrade MLflow to latest version"
+	@echo "  upgrade-kafka    - Upgrade Kafka to latest version"
 	@echo ""
 	@echo "  uninstall-argocd - Uninstall ArgoCD"
 	@echo "  uninstall-minio  - Uninstall MinIO"
 	@echo "  uninstall-postgresql - Uninstall PostgreSQL"
 	@echo "  uninstall-redis  - Uninstall Redis"
 	@echo "  uninstall-mlflow - Uninstall MLflow"
+	@echo "  uninstall-kafka  - Uninstall Kafka"
 	@echo ""
 	@echo "  status-argocd    - Show ArgoCD status"
 	@echo "  status-minio     - Show MinIO status"
 	@echo "  status-postgresql - Show PostgreSQL status"
 	@echo "  status-redis     - Show Redis status"
 	@echo "  status-mlflow    - Show MLflow status"
+	@echo "  status-kafka     - Show Kafka status"
 	@echo ""
 	@echo "  logs-argocd      - Show ArgoCD logs"
 	@echo "  logs-minio       - Show MinIO logs"
 	@echo "  logs-postgresql  - Show PostgreSQL logs"
 	@echo "  logs-redis       - Show Redis logs"
 	@echo "  logs-mlflow      - Show MLflow logs"
+	@echo "  logs-kafka       - Show Kafka logs"
 	@echo ""
 	@echo "Access URLs (domain: $(LOCAL_DOMAIN)):"
 	@echo "  ArgoCD:          https://argo.$(LOCAL_DOMAIN)"
 	@echo "  MinIO Console:   https://minio-console.$(LOCAL_DOMAIN)"
 	@echo "  MinIO API:       https://minio.$(LOCAL_DOMAIN)"
 	@echo "  MLflow:          https://mlflow.$(LOCAL_DOMAIN)"
+	@echo "  Redis UI:        https://redis.$(LOCAL_DOMAIN)"
 	@echo ""
 	@echo "Local Access (port-forward):"
 	@echo "  PostgreSQL:      localhost:5433 (kubectl port-forward -n postgresql svc/postgresql 5433:5432)"
 	@echo "  Redis:           localhost:6380 (kubectl port-forward -n redis svc/redis-master 6380:6379)"
+	@echo "  Kafka:           localhost:9092 (kubectl port-forward -n kafka svc/kafka 9092:9092)"
 	@echo ""
 	@echo "Environment variables:"
 	@echo "  LOCAL_DOMAIN     - Local domain (default: beavers.dev)"
@@ -186,4 +193,25 @@ status-mlflow:
 
 logs-mlflow:
 	@echo "MLflow Logs:"
-	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/manage-mlflow.sh logs 
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/manage-mlflow.sh logs
+
+# Kafka management
+install-kafka:
+	@echo "Installing Kafka..."
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/manage-kafka.sh install
+
+upgrade-kafka:
+	@echo "Upgrading Kafka..."
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/manage-kafka.sh upgrade
+
+uninstall-kafka:
+	@echo "Uninstalling Kafka..."
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/manage-kafka.sh uninstall
+
+status-kafka:
+	@echo "Kafka Status:"
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/manage-kafka.sh status
+
+logs-kafka:
+	@echo "Kafka Logs:"
+	@LOCAL_DOMAIN=$(LOCAL_DOMAIN) ./scripts/manage-kafka.sh logs 

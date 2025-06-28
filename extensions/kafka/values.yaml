@@ -1,0 +1,75 @@
+# Kafka Helm Values for kind-lab
+# Using Bitnami Kafka chart
+
+# Global configuration
+global:
+  domain: kafka.${LOCAL_DOMAIN}
+  tls:
+    enabled: true
+    secretName: kafka-tls
+
+# Kafka configuration
+kafka:
+  # Use Zookeeper mode
+  replicaCount: 1
+  zookeeper:
+    enabled: true
+    replicaCount: 1
+    persistence:
+      enabled: true
+      size: 8Gi
+      storageClass: ""
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "200m"
+    service:
+      type: ClusterIP
+      port: 2181
+    securityContext:
+      enabled: true
+      runAsUser: 1001
+      fsGroup: 1001
+    podSecurityContext:
+      enabled: true
+      fsGroup: 1001
+  persistence:
+    enabled: true
+    size: 8Gi
+    storageClass: ""
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  service:
+    type: ClusterIP
+    port: 9092
+  extraEnvVars:
+    - name: KAFKA_CFG_ZOOKEEPER_CONNECT
+      value: "kafka-zookeeper.kafka.svc.cluster.local:2181"
+    - name: KAFKA_CFG_LISTENERS
+      value: "PLAINTEXT://:9092"
+    - name: KAFKA_CFG_ADVERTISED_LISTENERS
+      value: "PLAINTEXT://kafka.kafka.svc.cluster.local:9092"
+  configuration: |
+    log.retention.hours=168
+    log.segment.bytes=1073741824
+    log.retention.check.interval.ms=300000
+    num.partitions=3
+    default.replication.factor=1
+    min.insync.replicas=1
+    inter.broker.protocol.version=2.8
+    log.message.format.version=2.8
+  securityContext:
+    enabled: true
+    runAsUser: 1001
+    fsGroup: 1001
+  podSecurityContext:
+    enabled: true
+    fsGroup: 1001 
