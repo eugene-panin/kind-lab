@@ -1,0 +1,88 @@
+# Adminer Configuration for Local Lab
+# Lightweight web-based database management tool
+
+replicaCount: 1
+
+image:
+  repository: adminer
+  tag: "4.8.1-standalone"
+  pullPolicy: IfNotPresent
+
+nameOverride: "adminer"
+fullnameOverride: "adminer"
+
+service:
+  type: ClusterIP
+  port: 8080
+  annotations: {}
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "local-dev-tls"
+  hosts:
+    - host: postgres.beavers.dev
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: postgres-tls
+      hosts:
+        - postgres.beavers.dev
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+# Adminer configuration
+config:
+  # Design theme
+  design: "pepa-linha"
+  # No plugins needed for basic PostgreSQL access
+  plugins: ""
+
+# Security context
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+
+# Liveness and readiness probes
+livenessProbe:
+  httpGet:
+    path: /
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {} 

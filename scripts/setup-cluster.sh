@@ -200,6 +200,9 @@ print_summary() {
     echo -e "  Cluster '${CLUSTER_NAME}' is up and running."
     echo -e "  The status page is available at:"
     echo -e "    - ${YELLOW}https://status.${LOCAL_DOMAIN}${NC}"
+    echo -e ""
+    echo -e "  Access patterns:"
+    echo -e "    - HTTP/HTTPS services: ${YELLOW}https://service.${LOCAL_DOMAIN}${NC} (via Ingress)"
     echo -e "${GREEN}===============================================================${NC}"
 }
 

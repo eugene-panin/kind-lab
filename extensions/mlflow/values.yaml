@@ -1,0 +1,54 @@
+# MLflow Helm Chart Values
+# https://github.com/community-charts/helm-charts/tree/main/charts/mlflow
+
+# MLflow configuration
+backendStore:
+  databaseMigration: true
+  postgres:
+    enabled: true
+    host: postgresql.postgresql.svc.cluster.local
+    port: 5432
+    database: ${MLFLOW_DB_NAME}
+    user: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+
+artifactRoot:
+  s3:
+    enabled: true
+    bucket: ${MLFLOW_S3_BUCKET}
+
+extraEnvVars:
+  AWS_ACCESS_KEY_ID: ${MINIO_ADMIN}
+  AWS_SECRET_ACCESS_KEY: ${MINIO_ADMIN_PASSWORD}
+  MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
+  MLFLOW_S3_IGNORE_TLS: ${MLFLOW_S3_IGNORE_TLS}
+  AWS_DEFAULT_REGION: ${MLFLOW_AWS_REGION}
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 5000
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: selfsigned-issuer
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: mlflow.${LOCAL_DOMAIN}
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: local-dev-tls
+      hosts:
+        - mlflow.${LOCAL_DOMAIN}
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "200m"
+  limits:
+    memory: "2Gi"
+    cpu: "1" 

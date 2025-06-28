@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to manage ArgoCD
+# Script to manage PostgreSQL
 # Supports: install, update, uninstall, status operations
 
 set -e
@@ -15,11 +15,11 @@ CERTS_DIR="$(pwd)/certs"
 CERT_FILE="$CERTS_DIR/cert.pem"
 KEY_FILE="$CERTS_DIR/key.pem"
 
-NAMESPACE="argocd"
-CHART_NAME="argocd"
-REPO_NAME="argo"
-CHART_VERSION="8.1.2"
-VALUES_FILE="extensions/argocd/values.yaml"
+NAMESPACE="postgresql"
+CHART_NAME="postgresql"
+REPO_NAME="bitnami"
+CHART_VERSION="16.7.14"
+VALUES_FILE="extensions/postgresql/values.yaml"
 
 # Colors for output
 RED='\033[0;31m'
@@ -57,8 +57,9 @@ log_error() {
 
 # Get environment variables with defaults
 LOCAL_DOMAIN=${LOCAL_DOMAIN:-beavers.dev}
-ARGO_ADMIN=${ARGO_ADMIN:-admin}
-ARGO_ADMIN_PASSWORD=${ARGO_ADMIN_PASSWORD:-admin123}
+POSTGRES_USER=${POSTGRES_USER:-postgres}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres123}
+POSTGRES_DB=${POSTGRES_DB:-lab}
 
 # Function to check if cluster is accessible
 check_cluster() {
@@ -68,10 +69,10 @@ check_cluster() {
     fi
 }
 
-# Function to check if ArgoCD values file exists
+# Function to check if PostgreSQL values file exists
 check_values_file() {
-    if [ ! -f "extensions/argocd/values.yaml" ]; then
-        log_error "ArgoCD values file not found: extensions/argocd/values.yaml"
+    if [ ! -f "extensions/postgresql/values.yaml" ]; then
+        log_error "PostgreSQL values file not found: extensions/postgresql/values.yaml"
         exit 1
     fi
 }
@@ -106,13 +107,13 @@ copy_tls_certificate() {
     log_success "TLS certificate applied successfully to namespace $namespace"
 }
 
-# Function to install ArgoCD
+# Function to install PostgreSQL
 install() {
-    log_info "Installing ArgoCD..."
+    log_info "Installing PostgreSQL..."
     
     # Проверка: если релиз уже существует, не устанавливать повторно
     if release_exists "$NAMESPACE" "$CHART_NAME"; then
-        log_warning "ArgoCD is already installed in namespace $NAMESPACE. Use 'upgrade' to update or 'uninstall' to remove."
+        log_warning "PostgreSQL is already installed in namespace $NAMESPACE. Use 'upgrade' to update or 'uninstall' to remove."
         return 0
     fi
     
@@ -125,19 +126,19 @@ install() {
     # Copy TLS certificate to namespace
     copy_tls_certificate "$NAMESPACE"
     
-    # Add ArgoCD repository if not already added
+    # Add Bitnami repository if not already added
     if ! helm repo list | grep -q "$REPO_NAME"; then
-        log_info "Adding ArgoCD repository..."
-        helm repo add "$REPO_NAME" https://argoproj.github.io/argo-helm
+        log_info "Adding Bitnami repository..."
+        helm repo add "$REPO_NAME" https://charts.bitnami.com/bitnami
         helm repo update
     fi
     
     # Check if values file exists
-    local values_file="extensions/argocd/values.yaml"
+    local values_file="extensions/postgresql/values.yaml"
     if [ ! -f "$values_file" ]; then
         log_warning "Values file not found: $values_file"
         log_info "Installing with default values..."
-        helm install "$CHART_NAME" "$REPO_NAME/argo-cd" \
+        helm install "$CHART_NAME" "$REPO_NAME/postgresql" \
             --namespace "$NAMESPACE" \
             --create-namespace \
             --wait \
@@ -147,11 +148,12 @@ install() {
         # Prepare values file with environment variable substitution
         local temp_values=$(mktemp)
         LOCAL_DOMAIN="$LOCAL_DOMAIN" \
-        ARGO_ADMIN="$ARGO_ADMIN" \
-        ARGO_ADMIN_PASSWORD="$ARGO_ADMIN_PASSWORD" \
+        POSTGRES_USER="$POSTGRES_USER" \
+        POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+        POSTGRES_DB="$POSTGRES_DB" \
         envsubst < "$values_file" > "$temp_values"
         
-        helm install "$CHART_NAME" "$REPO_NAME/argo-cd" \
+        helm install "$CHART_NAME" "$REPO_NAME/postgresql" \
             --namespace "$NAMESPACE" \
             --create-namespace \
             --values "$temp_values" \
@@ -162,18 +164,20 @@ install() {
         rm -f "$temp_values"
     fi
     
-    log_success "ArgoCD installed successfully!"
-    log_info "ArgoCD will be available at: https://argo.$LOCAL_DOMAIN"
-    log_info "Admin credentials: $ARGO_ADMIN / $ARGO_ADMIN_PASSWORD"
+    log_success "PostgreSQL installed successfully!"
+    log_info "PostgreSQL will be available at: postgresql.$NAMESPACE.svc.cluster.local:5432"
+    log_info "Database: $POSTGRES_DB"
+    log_info "User: $POSTGRES_USER"
+    log_info "Password: $POSTGRES_PASSWORD"
 }
 
-# Function to upgrade ArgoCD
+# Function to upgrade PostgreSQL
 upgrade() {
-    log_info "Upgrading ArgoCD..."
+    log_info "Upgrading PostgreSQL..."
     
     # Проверка: если релиз не установлен, не выполнять upgrade
     if ! release_exists "$NAMESPACE" "$CHART_NAME"; then
-        log_warning "ArgoCD is not installed in namespace $NAMESPACE. Use 'install' to deploy."
+        log_warning "PostgreSQL is not installed in namespace $NAMESPACE. Use 'install' to deploy."
         return 0
     fi
     
@@ -186,12 +190,13 @@ upgrade() {
     # Prepare values file with environment variable substitution
     local temp_values=$(mktemp)
     LOCAL_DOMAIN="$LOCAL_DOMAIN" \
-    ARGO_ADMIN="$ARGO_ADMIN" \
-    ARGO_ADMIN_PASSWORD="$ARGO_ADMIN_PASSWORD" \
+    POSTGRES_USER="$POSTGRES_USER" \
+    POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+    POSTGRES_DB="$POSTGRES_DB" \
     envsubst < "$VALUES_FILE" > "$temp_values"
     
-    # Upgrade ArgoCD
-    helm upgrade "$CHART_NAME" "$REPO_NAME/argo-cd" \
+    # Upgrade PostgreSQL
+    helm upgrade "$CHART_NAME" "$REPO_NAME/postgresql" \
         --namespace "$NAMESPACE" \
         --version "$CHART_VERSION" \
         --values "$temp_values" \
@@ -201,19 +206,19 @@ upgrade() {
     # Cleanup temp file
     rm -f "$temp_values"
     
-    log_success "ArgoCD upgraded successfully!"
+    log_success "PostgreSQL upgraded successfully!"
 }
 
-# Function to uninstall ArgoCD
+# Function to uninstall PostgreSQL
 uninstall() {
-    log_info "Uninstalling ArgoCD..."
+    log_info "Uninstalling PostgreSQL..."
     
     if ! release_exists "$NAMESPACE" "$CHART_NAME"; then
-        log_warning "ArgoCD is not installed."
+        log_warning "PostgreSQL is not installed."
         return 0
     fi
     
-    # Uninstall ArgoCD
+    # Uninstall PostgreSQL
     helm uninstall "$CHART_NAME" --namespace "$NAMESPACE"
     
     # Delete namespace if it exists
@@ -222,52 +227,52 @@ uninstall() {
         kubectl delete namespace "$NAMESPACE"
     fi
     
-    log_success "ArgoCD uninstalled successfully!"
+    log_success "PostgreSQL uninstalled successfully!"
 }
 
 # Function to show status
 status() {
-    log_info "Checking ArgoCD status..."
+    log_info "Checking PostgreSQL status..."
     
     if ! release_exists "$NAMESPACE" "$CHART_NAME"; then
-        log_warning "ArgoCD is not installed."
+        log_warning "PostgreSQL is not installed."
         return 0
     fi
     
     echo
-    log_info "ArgoCD Release Status:"
+    log_info "PostgreSQL Release Status:"
     helm list -n "$NAMESPACE" | grep "$CHART_NAME"
     
     echo
-    log_info "ArgoCD Pods:"
-    kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=argocd-server
+    log_info "PostgreSQL Pods:"
+    kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=postgresql
     
     echo
-    log_info "ArgoCD Services:"
-    kubectl get svc -n "$NAMESPACE" -l app.kubernetes.io/name=argocd-server
-    
-    echo
-    log_info "ArgoCD Ingress:"
-    kubectl get ingress -n "$NAMESPACE" -l app.kubernetes.io/name=argocd-server
+    log_info "PostgreSQL Services:"
+    kubectl get svc -n "$NAMESPACE" -l app.kubernetes.io/name=postgresql
     
     echo
     log_info "TLS Certificate:"
     kubectl get secret local-dev-tls -n "$NAMESPACE" 2>/dev/null || log_warning "TLS certificate not found in namespace"
     
     echo
-    log_info "Access URL: https://argo.$LOCAL_DOMAIN"
-    log_info "Admin credentials: $ARGO_ADMIN / $ARGO_ADMIN_PASSWORD"
+    log_info "Connection Details:"
+    log_info "  Host: postgresql.$NAMESPACE.svc.cluster.local"
+    log_info "  Port: 5432"
+    log_info "  Database: $POSTGRES_DB"
+    log_info "  User: $POSTGRES_USER"
+    log_info "  Password: $POSTGRES_PASSWORD"
 }
 
 # Function to show logs
 logs() {
     if ! release_exists "$NAMESPACE" "$CHART_NAME"; then
-        log_error "ArgoCD is not installed."
+        log_error "PostgreSQL is not installed."
         exit 1
     fi
     
-    log_info "Showing ArgoCD logs..."
-    kubectl logs -n "$NAMESPACE" -l app.kubernetes.io/name=argocd-server --tail=100 -f
+    log_info "Showing PostgreSQL logs..."
+    kubectl logs -n "$NAMESPACE" -l app.kubernetes.io/name=postgresql --tail=100 -f
 }
 
 # Function to show help
@@ -275,22 +280,24 @@ show_help() {
     echo "Usage: $0 {install|upgrade|uninstall|status|logs|help}"
     echo
     echo "Commands:"
-    echo "  install   - Install ArgoCD"
-    echo "  upgrade   - Upgrade ArgoCD"
-    echo "  uninstall - Uninstall ArgoCD"
-    echo "  status    - Show ArgoCD status"
-    echo "  logs      - Show ArgoCD logs"
+    echo "  install   - Install PostgreSQL"
+    echo "  upgrade   - Upgrade PostgreSQL"
+    echo "  uninstall - Uninstall PostgreSQL"
+    echo "  status    - Show PostgreSQL status"
+    echo "  logs      - Show PostgreSQL logs"
     echo "  help      - Show this help message"
     echo
-    echo "ArgoCD will be installed with:"
-    echo "  - Web UI at https://argo.$LOCAL_DOMAIN"
-    echo "  - Admin: $ARGO_ADMIN / $ARGO_ADMIN_PASSWORD"
+    echo "PostgreSQL will be installed with:"
+    echo "  - Database: $POSTGRES_DB"
+    echo "  - User: $POSTGRES_USER"
+    echo "  - Password: $POSTGRES_PASSWORD"
     echo "  - TLS certificate automatically copied to namespace"
     echo
     echo "Environment variables (from .env file):"
     echo "  LOCAL_DOMAIN - Local domain (default: beavers.dev)"
-    echo "  ARGO_ADMIN - Admin username (default: admin)"
-    echo "  ARGO_ADMIN_PASSWORD - Admin password"
+    echo "  POSTGRES_USER - Database user (default: postgres)"
+    echo "  POSTGRES_PASSWORD - Database password"
+    echo "  POSTGRES_DB - Database name (default: lab)"
 }
 
 # Main script logic

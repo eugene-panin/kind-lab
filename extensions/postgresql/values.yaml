@@ -1,0 +1,67 @@
+## PostgreSQL Configuration for Local Lab
+## Minimal configuration for development environment
+
+# Authentication
+auth:
+  enablePostgresUser: true
+  postgresPassword: ${POSTGRES_PASSWORD}
+  username: ${POSTGRES_USER}
+  password: ${POSTGRES_PASSWORD}
+  database: ${POSTGRES_DB}
+
+# Architecture - standalone for local lab
+architecture: standalone
+
+# Primary PostgreSQL configuration
+primary:
+  # Minimal resources for local development
+  resourcesPreset: "nano"
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  
+  # Persistence - small size for local lab
+  persistence:
+    enabled: true
+    storageClass: "standard"
+    size: 1Gi
+  
+  # Service configuration - NodePort for external access
+  service:
+    type: NodePort
+    ports:
+      postgresql: 5432
+    nodePorts:
+      postgresql: "30432"  # Fixed NodePort for consistent access
+
+# Disable unnecessary features for local lab
+metrics:
+  enabled: false
+
+# Disable backup for local lab (use manual backups)
+backup:
+  enabled: false
+
+# Disable monitoring
+monitoring:
+  enabled: false
+
+# Disable LDAP
+ldap:
+  enabled: false
+
+# Disable PgBouncer
+pgbouncer:
+  enabled: false
+
+# Disable replication
+readReplicas:
+  enabled: false
+
+# Disable audit
+audit:
+  enabled: false 

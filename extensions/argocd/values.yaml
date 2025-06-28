@@ -21,6 +21,8 @@ configs:
   cm:
     url: https://argo.${LOCAL_DOMAIN}
     admin.enabled: "true"
+  secret:
+    argocdServerAdminPassword: ${ARGO_ADMIN_PASSWORD}
 
 # Enable metrics for monitoring
 controller:

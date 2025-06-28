@@ -1,312 +1,310 @@
-# Kind Lab
+# Kind Lab - Local Kubernetes Development Environment
 
-A local Kubernetes development environment using Kind (Kubernetes in Docker) with automatic DNS resolution, TLS certificates, and GitOps infrastructure for macOS.
+A local Kubernetes development environment using Kind (Kubernetes in Docker) with automatic DNS resolution, TLS certificates, and essential services for development and testing.
 
 ## Features
 
-- 🚀 **One-command cluster setup** with Kind
-- 🌐 **Automatic DNS resolution** for custom domains (e.g., `*.beavers.dev`)
-- 🔒 **TLS certificates** with mkcert for secure local development
-- 📦 **NGINX Ingress Controller** for routing traffic
-- 🎯 **Live-reload** for application files
-- 🧹 **Easy cleanup** and resource management
-- 🔄 **GitOps infrastructure** with ArgoCD
-- 📓 **JupyterHub** for data science and development
-
-## Architecture
-
-This project follows a **separation of concerns** approach:
-
-### 🏗️ **kind-lab** (Infrastructure Layer)
-- **Cluster management** (Kind, DNS, TLS)
-- **GitOps platform** (ArgoCD)
-- **Development tools** (JupyterHub)
-
-### 🚀 **External Repositories** (Application Layer)
-- **ml-pipeline** - ML/Data processing applications
-- **user-service** - User management services
-- **api-gateway** - API gateway and routing
-- **frontend-app** - Web applications
-
-## Prerequisites
-
-- macOS (tested on macOS 14+)
-- Homebrew
-- Docker Desktop
+- **Multi-node Kind cluster** with 3 nodes (1 control-plane + 2 workers)
+- **Automatic DNS resolution** for `*.beavers.dev` domain
+- **TLS certificates** via mkcert for secure HTTPS access
+- **NGINX Ingress Controller** for routing traffic
+- **ArgoCD** for GitOps workflows
+- **MinIO** object storage with S3-compatible API
+- **PostgreSQL** database with NodePort access
+- **Redis** database with NodePort access
+- **Local Path Provisioner** for lightweight persistent storage
+- **Environment-based configuration** via `.env` file
 
 ## Quick Start
 
-### 1. Install dependencies
-```bash
-make deps
-```
-Installs: kind, kubectl, helm, mkcert, dnsmasq, argocd
+### Prerequisites
 
-### 2. Configure domain and certificates (requires sudo)
-```bash
-sudo make configure-domain
-```
-Creates TLS certificates, configures dnsmasq and system resolver for your domain.
+- Docker Desktop
+- Kind
+- kubectl
+- Helm
+- mkcert
 
-### 3. Start the cluster and install ArgoCD
+Install dependencies:
 ```bash
-make setup-complete
+make install-deps
 ```
-Creates the cluster, installs ArgoCD, and deploys status page.
 
-### 4. Install JupyterHub (optional)
-```bash
-make install-jh
-```
-Installs JupyterHub for data science and development.
+### Setup
 
-### 5. Clean up cluster and artifacts
+1. **Configure environment:**
 ```bash
-make clean
-```
-Removes cluster, certificates, and state files.
+# Copy example environment file
+cp env.example .env
 
-### 6. (Optional) Complete system cleanup
-```bash
-sudo ./scripts/uninstall-deps.sh
+# Edit .env file with your preferences
+# LOCAL_DOMAIN=beavers.dev
+# MINIO_ADMIN=minioadmin
+# MINIO_ADMIN_PASSWORD=minioadmin123
+# ARGO_ADMIN=admin
+# ARGO_ADMIN_PASSWORD=admin123
 ```
-Removes dnsmasq configs, resolver files, and mkcert root CA from system.
+
+2. **Configure domain and certificates:**
+```bash
+make configure-host
+```
+
+3. **Start the cluster:**
+```bash
+make start-cluster
+```
+
+4. **Install services:**
+```bash
+# Install ArgoCD
+make install-argocd
+
+# Install MinIO
+make install-minio
+
+# Install PostgreSQL
+make install-postgresql
+
+# Install Redis
+make install-redis
+```
+
+## Access URLs
+
+### HTTP/HTTPS Services (via Ingress)
+- **Status Page:** https://status.beavers.dev
+- **ArgoCD:** https://argo.beavers.dev
+- **MinIO Console:** https://minio-console.beavers.dev
+- **MinIO API:** https://minio.beavers.dev
+
+### TCP Services (via Port-Forward)
+- **PostgreSQL:** localhost:5433 (via port-forward)
+  - Database: `lab`
+  - User: `postgres`
+  - Password: `postgres123`
+  - Start port-forward: `kubectl port-forward -n postgresql svc/postgresql 5433:5432`
+- **Redis:** localhost:6380 (via port-forward)
+  - No authentication (development mode)
+  - Start port-forward: `kubectl port-forward -n redis svc/redis-master 6380:6379`
+
+## Architecture
+
+### **Stateless Approach**
+This project is designed for **stateless development**:
+
+- **VSCode + Local Git** - for notebook development and versioning
+- **MinIO** - for data storage (datasets, models, artifacts)
+- **ArgoCD** - for GitOps automation
+- **Kind Cluster** - for heavy computations when needed
+
+### **Data Storage Structure**
+```
+MinIO Buckets:
+├── datasets/          # Raw and processed datasets
+├── models/           # Trained models
+├── artifacts/        # Experiment artifacts
+└── cache/           # Computation cache
+```
+
+## Management Commands
+
+### Cluster Management
+```bash
+make start-cluster    # Start Kind cluster with ingress and storage
+make stop-cluster     # Stop and delete Kind cluster
+make status           # Show cluster status
+```
+
+### Application Management
+```bash
+# Install
+make install-argocd   # Install ArgoCD GitOps platform
+make install-minio    # Install MinIO object storage
+make install-postgresql # Install PostgreSQL database
+make install-redis    # Install Redis database
+
+# Upgrade
+make upgrade-argocd   # Upgrade ArgoCD to latest version
+make upgrade-minio    # Upgrade MinIO to latest version
+make upgrade-postgresql # Upgrade PostgreSQL to latest version
+make upgrade-redis    # Upgrade Redis to latest version
+
+# Uninstall
+make uninstall-argocd # Uninstall ArgoCD
+make uninstall-minio  # Uninstall MinIO
+make uninstall-postgresql # Uninstall PostgreSQL
+make uninstall-redis  # Uninstall Redis
+
+# Status
+make status-argocd    # Show ArgoCD status
+make status-minio     # Show MinIO status
+make status-postgresql # Show PostgreSQL status
+make status-redis     # Show Redis status
+
+# Logs
+make logs-argocd      # Show ArgoCD logs
+make logs-minio       # Show MinIO logs
+make logs-postgresql  # Show PostgreSQL logs
+make logs-redis       # Show Redis logs
+```
 
 ## Configuration
 
-### Environment Variables
-
-Copy `.env.example` to `.env` and modify as needed:
-
+### Environment Variables (.env file)
 ```bash
-cp .env.example .env
+# Local domain configuration
+LOCAL_DOMAIN=beavers.dev
+
+# MinIO configuration
+MINIO_ADMIN=minioadmin
+MINIO_ADMIN_PASSWORD=minioadmin123
+
+# ArgoCD configuration
+ARGO_ADMIN=admin
+ARGO_ADMIN_PASSWORD=admin123
+
+# PostgreSQL configuration
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres123
+POSTGRES_DB=lab
+
+# Jupyter user for MinIO (optional)
+MINIO_JUPYTER_USER=jupyter
+MINIO_JUPYTER_PASSWORD=jupyter123
 ```
 
-Available variables:
-- `CLUSTER_NAME` - Name of the Kind cluster (default: `kind-lab`)
-- `LOCAL_DOMAIN` - Local domain for services (default: `beavers.dev`)
+### Custom Values
+Each service can be customized by editing the corresponding values file:
+- `extensions/argocd/values.yaml` - ArgoCD configuration
+- `extensions/minio/values.yaml` - MinIO configuration
+- `extensions/postgresql/values.yaml` - PostgreSQL configuration
+- `extensions/redis/values.yaml` - Redis configuration
 
-### Changing Local Domain
+## Development Workflow
 
-To change the local domain:
+### **Local Development (VSCode)**
+1. **Create local Git repository** for notebooks
+2. **Work in VSCode** with Jupyter extension
+3. **Use MinIO for data** via S3 API
+4. **Version control** notebooks in Git
 
-1. **Update .env file:**
-   ```bash
-   echo "LOCAL_DOMAIN=my-new-domain.dev" > .env
-   ```
+### **MinIO Integration**
+```python
+# Example Python code for MinIO access
+import boto3
+import pandas as pd
 
-2. **Clean up old configuration:**
-   ```bash
-   make clean
-   ```
+# Connect to MinIO
+s3 = boto3.client('s3',
+    endpoint_url='https://minio.beavers.dev',
+    aws_access_key_id='minioadmin',
+    aws_secret_access_key='minioadmin',
+    verify=False  # For self-signed certificates
 
-3. **Configure new domain (requires sudo):**
-   ```bash
-   sudo make configure-domain
-   ```
+# Upload dataset
+s3.upload_file('data/train.csv', 'datasets', 'train.csv')
 
-4. **Start cluster with new domain:**
-   ```bash
-   make up
-   ```
-
-**Note:** After changing the domain, old URLs (e.g., `https://status.beavers.dev`) will stop working. New URLs will be `https://status.my-new-domain.dev`.
-
-## Available Commands
-
-```bash
-make deps               # Install required tools (kind, kubectl, helm, mkcert, dnsmasq, argocd)
-make configure-domain   # (sudo) Configure DNS and generate TLS certificates
-make up                 # Create/recreate and start the cluster
-make start              # Alias for 'up'
-make down               # Stop and delete the cluster
-make clean              # Delete cluster and all generated files (certs, state)
-make help               # Show this help message
-
-# ArgoCD
-make install-argocd     # Install ArgoCD GitOps platform
-make setup-complete     # Complete setup: cluster + ArgoCD
-make teardown-complete  # Complete teardown of all components
-
-# JupyterHub
-make install-jh         # Install JupyterHub
+# Download dataset
+s3.download_file('datasets', 'train.csv', 'data/train.csv')
+df = pd.read_csv('data/train.csv')
 ```
 
-## Services
+### **PostgreSQL Integration**
+```python
+# Example Python code for PostgreSQL access
+import psycopg2
+import pandas as pd
 
-Once the cluster is running, the following services are available:
+# Connect to PostgreSQL (via port-forward)
+conn = psycopg2.connect(
+    host='localhost',
+    port=5432,  # Port-forward
+    database='lab',
+    user='postgres',
+    password='postgres123'
+)
 
-- **Status Page**: https://status.beavers.dev
-- **ArgoCD**: https://argo.beavers.dev
-- **JupyterHub**: https://jupyter.beavers.dev
-
-## Infrastructure Components
-
-### 🔄 GitOps
-- **ArgoCD** - GitOps continuous delivery platform
-- **Application management** - Deploy applications from external repositories
-
-### 📓 Development Tools
-- **JupyterHub** - Multi-user Jupyter notebook server
-- **Dummy Authenticator** - Simple authentication for local development
-
-### 🔒 TLS Certificates
-- **mkcert** - Local development certificates (wildcard `*.beavers.dev`)
-- **Manual secret creation** - `kubectl create secret tls local-dev-tls`
-- **No cert-manager needed** - Simple and fast for local development
-
-## Development
-
-### Live Reload
-
-Application files in `src/status-app/` are mounted into the cluster and support live reloading. Changes to `index.html` are reflected immediately.
-
-### Adding Applications
-
-To add new applications:
-
-1. **Create a new repository** for your application
-2. **Add Kubernetes manifests** in the `k8s/` directory
-3. **Configure ArgoCD** to deploy from your repository
-
-### Custom Domains
-
-All services can be accessed via subdomains of your configured `LOCAL_DOMAIN`:
-- `https://your-app.beavers.dev`
-- `https://api.beavers.dev`
-- etc.
-
-## Repository Structure
-
+# Execute queries
+df = pd.read_sql_query("SELECT * FROM your_table", conn)
+conn.close()
 ```
-kind-lab/
-├── certs/                    # TLS certificates
-├── extensions/               # Helm values for infrastructure
-│   ├── argocd/              # ArgoCD configuration
-│   └── jupyterhub/          # JupyterHub configuration
-├── k8s/                      # Kubernetes manifests
-│   ├── kind-config.yaml      # Kind cluster config
-│   └── status-app.yaml       # Status page
-├── scripts/                  # Management scripts
-├── src/                      # Application source code
-│   └── status-app/           # Status page
-└── README.md
+
+**Note:** Start port-forward first: `kubectl port-forward -n postgresql svc/postgresql 5432:5432`
+
+### **ArgoCD for Automation**
+- **GitOps workflows** for infrastructure
+- **Automated deployments** from Git repositories
+- **Environment management** across different stages
+
+### **Redis Integration**
+```python
+# Example Python code for Redis access
+import redis
+
+# Connect to Redis (via port-forward)
+r = redis.Redis(host='localhost', port=6380, decode_responses=True)
+
+# Set and get values
+r.set('key', 'value')
+value = r.get('key')
+
+# Use Redis for caching
+r.setex('cache_key', 3600, 'cached_data')  # Expire in 1 hour
 ```
+
+**Note:** Start port-forward first: `kubectl port-forward -n redis svc/redis-master 6380:6379`
+
+## Storage
+
+The cluster uses **Local Path Provisioner** for lightweight persistent storage:
+- Fast and simple for local development
+- No external dependencies
+- Suitable for single-node workloads
+
+Services like MinIO use Local Path Provisioner for their persistent volumes.
 
 ## Troubleshooting
 
-### DNS Resolution Issues
+### Common Issues
 
-If `*.beavers.dev` doesn't resolve:
-
-1. Check dnsmasq status:
+1. **DNS resolution not working:**
    ```bash
-   brew services list | grep dnsmasq
+   make configure-host
    ```
 
-2. Restart dnsmasq:
+2. **TLS certificate errors:**
    ```bash
-   sudo brew services restart dnsmasq
+   make configure-host
+   make start-cluster
    ```
 
-3. Test DNS resolution:
+3. **Service not accessible:**
    ```bash
-   dig status.beavers.dev @127.0.0.1
+   kubectl get pods -A
+   kubectl get ingress -A
    ```
 
-### Certificate Issues
+### Logs and Debugging
+```bash
+# Check service logs
+make logs-<service>
 
-If you see certificate warnings:
+# Check pod status
+kubectl get pods -A
 
-1. Ensure mkcert root CA is installed:
-   ```bash
-   mkcert -install
-   ```
+# Check ingress status
+kubectl get ingress -A
 
-2. Regenerate certificates:
-   ```bash
-   sudo make configure-domain
-   ```
-
-### Cluster Creation Issues
-
-If cluster creation fails with "node(s) already exist":
-
-1. Clean up manually:
-   ```bash
-   kind delete cluster --name kind-lab
-   docker rm -f $(docker ps -a | grep kind-lab | awk '{print $1}')
-   ```
-
-2. Try again:
-   ```bash
-   make up
-   ```
-
-### ArgoCD Issues
-
-1. Check ArgoCD status:
-   ```bash
-   kubectl get pods -n argocd
-   ```
-
-2. Access ArgoCD UI:
-   ```bash
-   kubectl port-forward svc/argocd-server -n argocd 8080:443
-   ```
-
-3. Get admin password:
-   ```bash
-   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
-   ```
-
-### JupyterHub Issues
-
-1. Check JupyterHub status:
-   ```bash
-   kubectl get pods -n jupyterhub
-   ```
-
-2. Check ingress configuration:
-   ```bash
-   kubectl get ingress -n jupyterhub
-   ```
-
-3. Verify TLS secret:
-   ```bash
-   kubectl get secret local-dev-tls -n jupyterhub
-   ```
-
-## Architecture Diagram
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Local Files   │    │   Kind Cluster  │    │   Applications  │
-│                 │    │                 │    │                 │
-│ src/status-app/ │───▶│   NGINX Ingress │───▶│  Status Page    │
-│                 │    │   Controller    │    │  JupyterHub     │
-│ k8s/manifests/  │───▶│   TLS Secrets   │    │  Your Apps      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │
-                              ▼
-                       ┌─────────────────┐
-                       │   DNS (dnsmasq) │
-                       │   *.beavers.dev │
-                       └─────────────────┘
-                              │
-                              ▼
-                       ┌─────────────────┐
-                       │   ArgoCD        │
-                       │   GitOps        │
-                       └─────────────────┘
-                              │
-                              ▼
-                       ┌─────────────────┐
-                       │   External      │
-                       │   Repositories  │
-                       └─────────────────┘
+# Check storage
+kubectl get pvc -A
+kubectl get pv
 ```
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
+
+Access patterns:
+  - HTTP/HTTPS services: https://service.beavers.dev (via Ingress)
+  - TCP services: localhost:PORT (via kubectl port-forward)
